@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+#
+# pydefs.py - print python script outline
+#
+# inspired by rdefs (http://i.loveruby.net/svn/public/bin/trunk/rdefs.rb)
+#
+
+import sys
+import os
+import re
+from itertools import izip, count
+
+
+def usage(message=None, status=0):
+    if message is not None:
+        print message
+    print '''Usage: %s [options] [FILE]
+Options:
+    -h, --help         show this message and exit
+    -c, --class        show class only
+    -d, --def          show def only
+    -m, --module       show import line only
+    -n, --no-indent    no indent''' % os.path.basename(sys.argv[0])
+    sys.exit(status)
+
+
+def parse_args(args):
+    options = {'class': True, 'def': True, 'module': True, 'indent': True}
+    paths = []
+    for arg, pos in izip(args, count()):
+        if arg == '-' or  not arg.startswith('-'):
+            paths.insert(0, arg)
+        elif arg == '--':
+            paths[0:0] = args[pos+1:]
+            break
+        elif arg in ('-h', '--help'):
+            usage()
+        elif arg in ('-c', '--class'):
+            options['class'] = True
+            options['def'] = options['module'] = False
+        elif arg in ('-d', '--def'):
+            options['def'] = True
+            options['class'] = options['module'] = False
+        elif arg in ('-m', '--module'):
+            options['module'] = True
+            options['class'] = options['def'] = False
+        elif arg in ('-n', '--no-indent'):
+            options['indent'] = False
+        else:
+            usage('unknown option: %s' % arg)
+    path = paths[0] if paths else '-'
+    return options, path
+
+
+def main(_, *args):
+    options, path = parse_args(args)
+    impre = re.compile(r"^\s*(?:import|from)\s+")
+    classre = re.compile(r"^\s*class\s+")
+    defre = re.compile(r"^\s*def\s+")
+    f = sys.stdin if path == '-' else open(path, 'r')
+    for line in f:
+        if ((options['def'] and defre.match(line)) or
+            (options['class'] and classre.match(line)) or
+            (options['module'] and impre.match(line))):
+            if not options['indent']:
+                print line.strip()
+            else:
+                print line.rstrip()
+
+
+if __name__ == '__main__':
+    main(*sys.argv)
